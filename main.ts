@@ -1,41 +1,42 @@
-import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+// One Letter for Your Day — entry "D" for "doomscrolling".
+// Writes exactly one letter, A-Z, to $MAKEFUN_OUTPUT_DIR/entry.txt
+// (default /output), with no trailing newline.
+
+import { mkdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 
-// One letter for the day: D — the day was spent doomscrolling.
-// Phone glow at 2am, thumb still moving, nothing watched, nothing done.
-// A sharp picture, funny the moment it lands, and honest about a real day.
 const LETTER = "D";
 
-const outDir = process.env.MAKEFUN_OUTPUT_DIR ?? "/output";
-const outPath = join(outDir, "entry.txt");
-
-function checkLetter(letter: string): void {
-  if ([...letter].length !== 1) {
-    throw new Error(`entry must be exactly one character, got ${[...letter].length}`);
-  }
-  if (!/^[A-Z]$/.test(letter)) {
-    throw new Error(`entry must be a single letter A-Z, got ${JSON.stringify(letter)}`);
-  }
-  if (letter.trim() !== letter || /\s/.test(letter)) {
-    throw new Error("entry must not be whitespace");
-  }
+function isSingleLetter(value: string): boolean {
+  return /^[A-Z]$/.test(value) && Buffer.byteLength(value, "utf8") === 1;
 }
 
-function checkWritten(path: string, expected: string): void {
-  const back = readFileSync(path, "utf8");
-  if (back !== expected) {
-    throw new Error(`wrote ${JSON.stringify(back)}, expected ${JSON.stringify(expected)}`);
+function main(): void {
+  if (!isSingleLetter(LETTER)) {
+    throw new Error(
+      `letter must be exactly one A-Z character, got: ${JSON.stringify(LETTER)}`,
+    );
   }
-  const bytes = Buffer.byteLength(back, "utf8");
-  if (bytes !== 1) {
-    throw new Error(`entry must be exactly 1 byte, got ${bytes}`);
+
+  const outDir = process.env.MAKEFUN_OUTPUT_DIR ?? "/output";
+  mkdirSync(outDir, { recursive: true });
+  const outPath = join(outDir, "entry.txt");
+
+  writeFileSync(outPath, LETTER, "utf8");
+
+  const written = readFileSync(outPath, "utf8");
+  if (written !== LETTER) {
+    throw new Error(
+      `verification failed: entry.txt does not contain exactly ${JSON.stringify(LETTER)}`,
+    );
   }
+  if (statSync(outPath).size !== 1) {
+    throw new Error(
+      `verification failed: entry.txt must be exactly 1 byte, got ${statSync(outPath).size}`,
+    );
+  }
+
+  console.log(`wrote ${JSON.stringify(LETTER)} to ${outPath}`);
 }
 
-checkLetter(LETTER);
-
-mkdirSync(outDir, { recursive: true });
-writeFileSync(outPath, LETTER, "utf8");
-checkWritten(outPath, LETTER);
-
-console.log(`wrote ${JSON.stringify(LETTER)} to ${outPath} (1 byte)`);
+main();
